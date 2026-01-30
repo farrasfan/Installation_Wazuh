@@ -1,0 +1,186 @@
+========= WAZUH INDEXER ===========
+sudo curl -sO https://packages.wazuh.com/4.14/wazuh-certs-tool.sh
+sudo curl -sO https://packages.wazuh.com/4.14/config.yml
+
+---Installing package & Repository---
+sudo apt-get install debconf adduser procps
+sudo apt-get install gnupg apt-transport-https
+sudo curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH \
+| sudo gpg --no-default-keyring \
+  --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import \
+&& sudo chmod 644 /usr/share/keyrings/wazuh.gpg
+sudo echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+| sudo tee /etc/apt/sources.list.d/wazuh.list
+sudo apt update
+
+---Installing the Wazuh indexer---
+apt-get -y install wazuh-indexer
+sudo nano 
+%file
+network.host: "10.15.16.127"
+node.name: "wazuhindexer"
+cluster.initial_master_nodes:
+- "wazuhindexer"
+#- "node-2"
+#- "node-3"
+cluster.name: "wazuh-cluster"
+#discovery.seed_hosts:
+#  - "node-1-ip"
+#  - "node-2-ip"
+#  - "node-3-ip"
+node.max_local_storage_nodes: "3"
+path.data: /var/lib/wazuh-indexer
+path.logs: /var/log/wazuh-indexer
+
+plugins.security.ssl.http.pemcert_filepath: /etc/wazuh-indexer/certs/indexer.pem
+plugins.security.ssl.http.pemkey_filepath: /etc/wazuh-indexer/certs/indexer-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: /etc/wazuh-indexer/certs/root-ca.pem
+plugins.security.ssl.transport.pemcert_filepath: /etc/wazuh-indexer/certs/indexer.pem
+plugins.security.ssl.transport.pemkey_filepath: /etc/wazuh-indexer/certs/indexer-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: /etc/wazuh-indexer/certs/root-ca.pem
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.transport.resolve_hostname: false
+
+plugins.security.authcz.admin_dn:
+- "CN=admin,OU=Wazuh,O=Wazuh,L=California,C=US"
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.nodes_dn:
+- "CN=wazuhindexer,OU=Wazuh,O=Wazuh,L=California,C=US"
+#- "CN=node-2,OU=Wazuh,O=Wazuh,L=California,C=US"
+#- "CN=node-3,OU=Wazuh,O=Wazuh,L=California,C=US"
+plugins.security.restapi.roles_enabled:
+- "all_access"
+- "security_rest_api_access"
+
+plugins.security.system_indices.enabled: true
+plugins.security.system_indices.indices: [".plugins-ml-model", ".plugins-ml-task", ".opendistro-alerting-config", ".ope>
+
+### Option to allow Filebeat-oss 7.10.2 to work ###
+compatibility.override_main_response_version: true
+%file%
+
+---Deploying certificates---
+NODE_NAME=wazuhindexer
+mkdir /etc/wazuh-indexer/certs
+tar -xf ./wazuh-certificates.tar -C /etc/wazuh-indexer/certs/ ./wazuhindexer.pem ./wazuhindexer-key.pem ./admin.pem ./admin-key.pem ./root-ca.pem
+mv -n /etc/wazuh-indexer/certs/wazuhindexer.pem /etc/wazuh-indexer/certs/indexer.pem
+mv -n /etc/wazuh-indexer/certs/wazuhindexer-key.pem /etc/wazuh-indexer/certs/indexer-key.pem
+sudo chown -R wazuh-indexer:wazuh-indexer /etc/wazuh-indexer/certs
+sudo bash -c "chmod 400 /etc/wazuh-indexer/certs/*.pem"
+sudo chmod 500 /etc/wazuh-indexer/certs
+
+---starting the service---
+systemctl daemon-reload
+systemctl enable wazuh-indexer
+systemctl start wazuh-indexer
+
+---disable wazuh update---
+sudo sed -i "s/^deb /#deb /" /etc/apt/sources.list.d/wazuh.list
+sudo apt update
+
+
+========WAZUH MANAGER/SERVER==========
+sudo apt-get install gnupg apt-transport-https
+sudo curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+sudo bash -c 'curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH \
+| gpg --no-default-keyring \
+  --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import \
+&& chmod 644 /usr/share/keyrings/wazuh.gpg'
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+| sudo tee /etc/apt/sources.list.d/wazuh.list
+sudo apt-get update
+
+---Installing the Wazuh manager---
+sudo apt-get -y install wazuh-manager
+sudo apt-get -y install filebeat
+
+---Configure Filebeat---
+curl -so /etc/filebeat/filebeat.yml https://packages.wazuh.com/4.14/tpl/wazuh/filebeat/filebeat.yml
+sudo nano 
+%file
+# Wazuh - Filebeat configuration file
+output.elasticsearch:
+  hosts: ["10.15.16.127:9200"]
+  protocol: https
+  username: ${username}
+  password: ${password}
+  ssl.certificate_authorities:
+    - /etc/filebeat/certs/root-ca.pem
+setup.template.json.enabled: true
+setup.template.json.path: '/etc/filebeat/wazuh-template.json'
+setup.template.json.name: 'wazuh'
+setup.ilm.overwrite: true
+setup.ilm.enabled: false
+
+filebeat.modules:
+  - module: wazuh
+    alerts:
+      enabled: true
+    archives:
+      enabled: false
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+logging.metrics.enabled: false
+
+seccomp:
+  default_action: allow
+  syscalls:
+  - action: allow
+    names:
+    - rseq
+%file%
+
+filebeat keystore create
+sudo bash -c 'echo admin | filebeat keystore add username --stdin --force'
+sudo bash -c 'echo admin | filebeat keystore add password --stdin --force'
+sudo curl -so /etc/filebeat/wazuh-template.json https://raw.githubusercontent.com/wazuh/wazuh/v4.14.2/extensions/elasticsearch/7.x/wazuh-template.json
+sudo chmod go+r /etc/filebeat/wazuh-template.json
+sudo curl -s https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.5.tar.gz \
+| sudo tar -xz -C /usr/share/filebeat/module
+
+---Deploying Certificate---
+mkdir /etc/filebeat/certs
+sudo chown root:root /etc/filebeat/certs/root-ca.pem
+sudo chmod 400 /etc/filebeat/certs/root-ca.pem
+sudo chmod 500 /etc/filebeat/certs
+
+sudo nano /var/ossec/etc/ossec.conf
+ <indexer>
+    <enabled>yes</enabled>
+    <hosts>
+      <host>https://0.0.0.0:9200</host>
+    </hosts>
+    <ssl>
+      <certificate_authorities>
+        <ca>/etc/filebeat/certs/root-ca.pem</ca>
+      </certificate_authorities>
+      <certificate>/etc/filebeat/certs/filebeat.pem</certificate>
+      <key>/etc/filebeat/certs/filebeat-key.pem</key>
+    </ssl>
+  </indexer>
+
+---starting wazuh manager---
+sudo systemctl daemon-reload
+sudo systemctl enable wazuh-manager
+sudo systemctl start wazuh-manager
+systemctl status wazuh-manager
+
+---starting filebeat---
+sudo systemctl daemon-reload
+sudo systemctl enable filebeat
+sudo systemctl start filebeat
+
+---Disable wazuh update---
+sudo sed -i "s/^deb /#deb /" /etc/apt/sources.list.d/wazuh.list
+sudo apt update
+
+
