@@ -183,4 +183,62 @@ sudo systemctl start filebeat
 sudo sed -i "s/^deb /#deb /" /etc/apt/sources.list.d/wazuh.list
 sudo apt update
 
+========WAZUH DASHBOARD===========
+sudo apt-get install debhelper tar curl libcap2-bin
+sudo apt-get install gnupg apt-transport-https
+sudo curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH \
+| sudo gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+sudo chmod 644 /usr/share/keyrings/wazuh.gpg
+sudo echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt stable main" \
+| sudo tee /etc/apt/sources.list.d/wazuh.list
+sudo apt update
+
+---installing the Wazuh Dashboard---
+sudo apt-get -y install wazuh-dashboard
+sudo nano /etc/wazuh-dashboard/opensearch_dashboards.yml 
+%file
+server.host: 0.0.0.0
+server.port: 5601
+opensearch.hosts: https://10.15.16.127:9200
+opensearch.ssl.verificationMode: certificate
+#opensearch.username:
+#opensearch.password:
+opensearch.requestHeadersAllowlist: ["securitytenant","Authorization"]
+opensearch_security.multitenancy.enabled: false
+opensearch_security.readonly_mode.roles: ["kibana_read_only"]
+opensearch.ssl.certificateAuthorities: ["/etc/wazuh-dashboard/certs/root-ca.pem"]
+uiSettings.overrides.defaultRoute: /app/wz-home
+# Session expiration settings
+opensearch_security.cookie.ttl: 900000
+opensearch_security.session.ttl: 900000
+opensearch_security.session.keepalive: true
+%file%
+
+---Deploying Certificate---
+mkdir /etc/wazuh-dashboard/certs
+sudo chown -R wazuh-dashboard:wazuh-dashboard /etc/wazuh-dashboard/certs
+sudo chmod 500 /etc/wazuh-dashboard/certs
+sudo chmod 400 /etc/wazuh-dashboard/certs/root-ca.pem
+
+---Starting Wazuh Dashboard---
+systemctl daemon-reload
+systemctl enable wazuh-dashboard
+systemctl start wazuh-dashboard
+sudo nano /usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
+%file
+hosts:
+  - default:
+      url: https://10.15.16.124
+      port: 55000
+      username: wazuh-wui
+      password: wazuh-wui
+      run_as: false
+%file%
+
+
+
+
+
+
+
 
