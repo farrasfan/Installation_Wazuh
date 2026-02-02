@@ -1,0 +1,11 @@
+<--Check os
+cat /etc/os-release
+uname -m
+
+pada website-dev
+sudo nano /var/ossec/etc/ossec.conf
+delete this
+  <localfile>
+    <log_format>journald</log_format>
+    <location>journald</location>
+  </localfile>
