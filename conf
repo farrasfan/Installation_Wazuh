@@ -432,3 +432,30 @@ wazuhserver@wazuhserver-Virtual-Machine:~$ sudo cat /var/ossec/etc/rules/local_r
   </rule>
 
 </group>
+
+in wazuh manager 
+  <indexer>
+    <enabled>yes</enabled>
+    <hosts>
+      <host>https://10.15.16.127:9200</host>
+    </hosts>
+    <ssl>
+      <certificate_authorities>
+        <ca>/etc/filebeat/certs/root-ca.pem</ca>
+      </certificate_authorities>
+      <certificate>/etc/filebeat/certs/filebeat.pem</certificate>
+      <key>/etc/filebeat/certs/filebeat-key.pem</key>
+    </ssl>
+  </indexer>
+change like this
+  <indexer>
+    <enabled>yes</enabled>
+    <hosts>
+      <host>https://10.15.16.127:9200</host>
+    </hosts>
+    <ssl>
+      <certificate_authorities>
+        <ca>/etc/filebeat/certs/root-ca.pem</ca>
+      </certificate_authorities>
+    </ssl>
+  </indexer>
