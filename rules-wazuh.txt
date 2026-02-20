@@ -11,4 +11,5 @@ rules id for trials from 700000 up
 1. level login
 1a level success: 5
 1b level failed: 8
+1c level logout: 5
 
