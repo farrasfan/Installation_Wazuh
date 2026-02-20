@@ -1,1 +1,14 @@
+=====Rules Setup ID=====
+this rules id start from 500000 - 600000
+rules id for trials from 700000 up
+
+=====Rules id for server=====
+1. msis-dev - 500100
+2. git-server - 500200
+3. wazuh-dashboard - 500300
+
+=====Rule level About Login=====
+1. level login
+1a level success: 5
+1b level failed: 8
 
