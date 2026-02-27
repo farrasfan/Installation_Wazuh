@@ -98,7 +98,7 @@ sudo apt-get -y install filebeat
 
 ---Configure Filebeat---
 curl -so /etc/filebeat/filebeat.yml https://packages.wazuh.com/4.14/tpl/wazuh/filebeat/filebeat.yml
-sudo nano 
+sudo nano /etc/filebeat/filebeat.yml
 %file
 # Wazuh - Filebeat configuration file
 output.elasticsearch:
