@@ -15,7 +15,7 @@ sudo apt update
 
 ---Installing the Wazuh indexer---
 apt-get -y install wazuh-indexer
-sudo nano 
+sudo nano /etc/wazuh-indexer/opensearch.yml
 %file
 network.host: "10.15.16.127"
 node.name: "wazuhindexer"
